@@ -44,12 +44,14 @@
 gethash."
   (let ((pair (assoc key (jso-alist map) :test #'string=)))
     (values (cdr pair) (and pair t))))
+
 (defun (setf getjso) (val key map)
   "Store a value in a JS object."
   (let ((pair (assoc key (jso-alist map) :test #'string=)))
     (if pair
         (setf (cdr pair) val)
         (prog1 val (push (cons key val) (jso-alist map))))))
+
 (defun mapjso (func map)
   "Iterate over the key/value pairs in a JS object."
   (loop :for (key . val) :in (jso-alist map)
@@ -58,8 +60,11 @@ gethash."
 (defun getjso* (keys jso)
   (let ((last (position #\. keys :from-end t)))
     (if last
-        (getjso (subseq keys (1+ last))
-                (getjso* (subseq keys 0 last) jso))
+        (let ((inner (getjso* (subseq keys 0 last) jso)))
+          (cond ((and inner (eq 'jso (type-of inner)))
+                 (getjso (subseq keys (1+ last)) inner))
+                (t
+                 (values nil nil))))
         (getjso keys jso))))
 
 ;; Reader
