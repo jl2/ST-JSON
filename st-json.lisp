@@ -5,6 +5,8 @@
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
+           #:jso-keys #:jso-values
+           #:jso-from-list #:jso-from-alist
            #:json-error #:json-type-error #:json-parse-error
            #:json-eof-error
            #:*decode-objects-as*
@@ -38,6 +40,17 @@
   (make-jso :alist (loop :for (key val) :on fields :by #'cddr
                            :collect (cons key val))))
 
+
+(defun pprint-json (data &optional (output-stream t))
+  "Use jq to pretty print JSON to the specified output stream (defaults to stdout)."
+  (with-input-from-string (stream (write-json-to-string data))
+    (uiop:run-program "jq . " :input stream :output output-stream)))
+
+(defmethod print-object ((obj jso) out)
+  "Pretty print JSON results using jq."
+  (pprint-json obj out))
+
+
 ;; A hash-table-like interface for JS objects.
 (defun getjso (key map)
   "Fetch a value from a JS object. Returns a second value like
@@ -55,7 +68,7 @@ gethash."
 (defun mapjso (func map)
   "Iterate over the key/value pairs in a JS object."
   (loop :for (key . val) :in (jso-alist map)
-        :do (funcall func key val)))
+        :collecting (funcall func key val)))
 
 (defun getjso* (keys jso)
   (let ((last (position #\. keys :from-end t)))
@@ -66,6 +79,26 @@ gethash."
                 (t
                  (values nil nil))))
         (getjso keys jso))))
+
+(defun jso-keys (map)
+  (loop :for (key . val) :in (jso-alist map)
+     :collecting key))
+
+(defun jso-values (map)
+  (loop :for (key . val) :in (jso-alist map)
+        :collecting val))
+
+(defun jso-from-list (vals)
+  (let ((rval (jso)))
+    (loop for (key value) on vals by #'cddr
+         do (setf (getjso key rval) value))
+    rval))
+
+(defun jso-from-alist (vals)
+  (let ((rval (jso)))
+    (loop for key-val in vals
+       do (setf (getjso (car key-val) rval) (cdr key-val)))
+    rval))
 
 ;; Reader
 
