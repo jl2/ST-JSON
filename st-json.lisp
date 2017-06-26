@@ -7,6 +7,7 @@
            #:jso #:getjso #:getjso* #:mapjso
            #:jso-keys #:jso-values
            #:jso-from-list #:jso-from-alist
+           #:jso-to-alist
            #:json-error #:json-type-error #:json-parse-error
            #:json-eof-error
            #:*decode-objects-as*
@@ -99,6 +100,11 @@ gethash."
     (loop for key-val in vals
        do (setf (getjso (car key-val) rval) (cdr key-val)))
     rval))
+
+(defun jso-to-alist (jso-val)
+  (typecase jso-val
+    (jso (mapjso (lambda (key val) (cons key (jso-to-alist val))) jso-val))
+    (t jso-val)))
 
 ;; Reader
 
