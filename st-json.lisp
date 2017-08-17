@@ -5,6 +5,7 @@
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
+           #:gj
            #:jso-keys #:jso-values
            #:jso-from-list #:jso-from-alist
            #:jso-to-alist
@@ -65,6 +66,12 @@ gethash."
     (if pair
         (setf (cdr pair) val)
         (prog1 val (push (cons key val) (jso-alist map))))))
+
+(defun gj (key)
+  (alexandria:curry #'getjso key))
+
+(defun gj* (key)
+  (alexandria:curry #'getjso* key))
 
 (defun mapjso (func map)
   "Iterate over the key/value pairs in a JS object."
