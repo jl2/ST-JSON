@@ -5,7 +5,7 @@
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
-           #:gj
+           #:gj #:gj*
            #:jso-keys #:jso-values
            #:jso-from-list #:jso-from-alist
            #:jso-to-alist
