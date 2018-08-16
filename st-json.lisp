@@ -1,11 +1,15 @@
 (defpackage :st-json
-  (:use :common-lisp)
+  (:use :common-lisp :alexandria)
   (:export #:read-json #:read-json-as-type #:read-json-from-string
            #:write-json #:write-json-to-string #:write-json-element
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
            #:gj #:gj*
+           #:filter-key
+           #:filter-value
+           #:matches
+           #:jso-filter
            #:jso-keys #:jso-values
            #:jso-from-list #:jso-from-alist
            #:jso-to-alist
@@ -18,7 +22,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *optimize*
-    '(optimize (speed 3) (safety 0) (space 1) (debug 1) (compilation-speed 0))))
+    '(optimize (speed 0) (safety 3) (space 3) (debug 1) (compilation-speed 0))))
 
 ;; Boolean types. It is hard to see what is meant by NIL when encoding
 ;; a lisp value -- false or [] -- so :false and :true are used instead
@@ -41,7 +45,6 @@
   "Create a JS object. Arguments should be alternating labels and values."
   (make-jso :alist (loop :for (key val) :on fields :by #'cddr
                            :collect (cons key val))))
-
 
 (defun pprint-json (data &optional (output-stream t))
   "Use jq to pretty print JSON to the specified output stream (defaults to stdout)."
@@ -73,10 +76,26 @@ gethash."
 (defun gj* (key)
   (alexandria:curry #'getjso* key))
 
+(defun filter-key (jso pred)
+  (jso-from-alist 
+   (loop for (key . val) in (jso-alist jso)
+      when (funcall pred key) collect (cons key val))))
+
+(defun filter-value (jso pred)
+  (jso-from-alist (loop for (key . val) in (jso-alist jso)
+     when (funcall pred val) collect (cons key val))))
+
 (defun mapjso (func map)
   "Iterate over the key/value pairs in a JS object."
   (loop :for (key . val) :in (jso-alist map)
-        :collecting (funcall func key val)))
+     :collecting (funcall func key val)))
+
+(defun matches (jso key values)
+  (when-let (value (getjso key jso))
+    (when (find value values) jso)))
+
+(defun jso-filter (jso-data outter inner values)
+  (jso outter (remove-if-not (rcurry #'matches inner values) (getjso outter jso-data))))
 
 (defun getjso* (keys jso)
   (let ((last (position #\. keys :from-end t)))
@@ -87,6 +106,7 @@ gethash."
                 (t
                  (values nil nil))))
         (getjso keys jso))))
+
 
 (defun jso-keys (map)
   (loop :for (key . val) :in (jso-alist map)
