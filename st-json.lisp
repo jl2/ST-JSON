@@ -1,7 +1,9 @@
 (defpackage :st-json
-  (:use :common-lisp :alexandria)
+  (:use :common-lisp)
   (:export #:read-json #:read-json-as-type #:read-json-from-string
            #:write-json #:write-json-to-string #:write-json-element
+           #:print-json-element
+           #:*print-object-pretty-prints*
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
@@ -32,6 +34,7 @@
 (defun as-json-bool (value)
   "Convert a generalised boolean to a :true/:false keyword."
   (if value :true :false))
+
 (defun from-json-bool (value)
   "Convert :true or :false to its boolean equivalent."
   (ecase value (:true t) (:false nil)))
@@ -48,14 +51,11 @@
   (make-jso :alist (loop :for (key val) :on fields :by #'cddr
                            :collect (cons key val))))
 
-(defun pprint-json (data &optional (output-stream t))
-  "Use jq to pretty print JSON to the specified output stream (defaults to stdout)."
-  (with-input-from-string (stream (write-json-to-string data))
-    (uiop:run-program "jq . " :input stream :output output-stream)))
-
 (defmethod print-object ((obj jso) out)
-  "Pretty print JSON results using jq."
-  (pprint-json obj out))
+  "Pretty print JSON results to stream."
+  (if *print-object-pretty-prints*
+      (print-json-element obj out)
+      (write-json obj out)))
 
 
 ;; A hash-table-like interface for JS objects.
@@ -73,13 +73,13 @@ gethash."
         (prog1 val (push (cons key val) (jso-alist map))))))
 
 (defun gj (key)
-  (alexandria:curry #'getjso key))
+  (lambda (jso) (getjso key jso)))
 
 (defun gj* (key)
-  (alexandria:curry #'getjso* key))
+  (lambda (jso) (getjso* key jso)))
 
 (defun filter-key (jso pred)
-  (jso-from-alist 
+  (jso-from-alist
    (loop for (key . val) in (jso-alist jso)
       when (funcall pred key) collect (cons key val))))
 
@@ -93,11 +93,12 @@ gethash."
      :collecting (funcall func key val)))
 
 (defun matches (jso key values)
-  (when-let (value (getjso key jso))
-    (when (find value values) jso)))
+  (let ((value (getjso key jso)))
+    (when (and value (find value values))
+      jso)))
 
 (defun jso-filter (jso-data outter inner values)
-  (jso outter (remove-if-not (rcurry #'matches inner values) (getjso outter jso-data))))
+  (jso outter (remove-if-not (lambda (jso) (matches jso inner values)) (getjso outter jso-data))))
 
 (defun getjso* (keys jso)
   (let ((last (position #\. keys :from-end t)))
@@ -111,11 +112,11 @@ gethash."
 
 
 (defun jso-keys (map)
-  (loop :for (key . val) :in (jso-alist map)
+  (loop :for (key . nil) :in (jso-alist map)
      :collecting key))
 
 (defun jso-values (map)
-  (loop :for (key . val) :in (jso-alist map)
+  (loop :for (nil . val) :in (jso-alist map)
         :collecting val))
 
 (defun jso-from-list (vals)
@@ -384,6 +385,10 @@ Raises a json-type-error when the type is wrong."
   they can already read UTF-8, or else, they'll need to implement
   complex unicode (eg UTF-16 surrogate pairs) escape parsers.")
 
+(defparameter *print-object-pretty-prints* t
+  "Non-nil means print-object will pretty-print JSON output  When nil
+  object is written on a single line.")
+
 (defun write-json-to-string (element)
   "Write a value's JSON representation to a string."
   (with-output-to-string (out)
@@ -488,3 +493,127 @@ Raises a json-type-error when the type is wrong."
          (write-char #\, stream))
      (write-json-element part stream)))
   (write-char #\] stream))
+
+
+(defgeneric print-json-element (element stream &optional indent)
+  (:method (element stream &optional (indent 0))
+    (declare (ignore stream indent))
+    (raise 'json-write-error "Can not pretty-print object of type ~A as JSON." (type-of element)))
+  (:documentation "Method used for pretty printing values of a specific type.
+  You can specialise this for your own types."))
+
+(defparameter *indent-size* 4)
+
+(declaim (inline print-indent))
+(defun print-indent (indentation stream)
+    (write-string (make-string (* (max 0 indentation) *indent-size*) :initial-element #\Space) stream))
+
+(defmethod print-json-element ((element symbol) stream &optional (indent 0))
+  (declare #.*optimize*)
+  (declare (ignorable indent))
+
+  (ecase element
+    ((nil) (write-string "[]" stream))
+    ((t :true) (write-string "true" stream))
+    (:false (write-string "false" stream))
+    ((:null :undefined) (write-string "null" stream))))
+
+(defmethod print-json-element ((element string) stream &optional (indent 0))
+  (declare #.*optimize* (stream stream))
+  (declare (ignorable indent))
+  (let ((element (coerce element 'simple-string)))
+    (write-char #\" stream)
+    (loop :for prev := nil :then ch
+       :for ch :of-type character :across element :do
+       (let ((code (char-code ch)))
+         (declare (fixnum code))
+         (if (or (<= 0 code #x1f)
+                 (<= #x7f code #x9f))
+             (case code
+               (#.(char-code #\backspace) (write-string "\\b" stream))
+               (#.(char-code #\newline)   (write-string "\\n" stream))
+               (#.(char-code #\return)    (write-string "\\r" stream))
+               (#.(char-code #\page)      (write-string "\\f" stream))
+               (#.(char-code #\tab)       (write-string "\\t" stream))
+               (t                         (format stream "\\u~4,'0x" code)))
+             (case code
+               (#.(char-code #\/)  (when (and (eql prev #\<) *script-tag-hack*)
+                                     (write-char #\\ stream))
+                                   (write-char ch stream))
+               (#.(char-code #\\)  (write-string "\\\\" stream))
+               (#.(char-code #\")  (write-string "\\\"" stream))
+               (t                  (cond ((< #x1F code #x7F)
+                                          (write-char ch stream))
+                                         ((and (< #x9F code #x10000)
+                                               (not *output-literal-unicode*))
+                                          (format stream "\\u~4,'0x" code))
+                                         ((and (< #x10000 code #x1FFFF)
+                                               (not *output-literal-unicode*))
+                                          (let ((c (- code #x10000)))
+                                            (format stream "\\u~4,'0x\\u~4,'0x"
+                                                    (logior #xD800 (ash c -10))
+                                                    (logior #xDC00 (logand c #x3FF)))))
+                                         (t
+                                          (write-char ch stream))))))))
+    (write-char #\" stream)))
+
+#+nil
+(let ((st-json:*script-tag-hack* t))
+  (st-json:write-json-to-string "Test 𝄞 ⇓ 	<tag>
+</tag>"))
+;; ==> "\"Test \\uD834\\uDD1E \\u21D3 \\t<tag>\\n<\\/tag>\""
+
+(defmethod print-json-element ((element integer) stream &optional (indent 0))
+  (declare (ignorable indent))
+  (write element :stream stream))
+
+(defmethod print-json-element ((element real) stream &optional (indent 0))
+  (declare (ignorable indent))
+  (format stream "~,,,0,,,'eE" element))
+
+(defmethod print-json-element ((element hash-table) stream &optional (indent 0))
+  (declare #.*optimize*)
+  (print-indent indent stream)
+  (print-json-element
+   (make-jso :alist (loop
+                      :for key :being :the :hash-keys :of element
+                        :using (hash-value val)
+                      :collect (cons key val)))
+   stream
+   (1+ indent)))
+
+(defmethod print-json-element ((element jso) stream &optional (indent 0))
+  (declare #.*optimize*)
+  (declare (ignorable indent))
+  (write-char #\{ stream)
+  (write-char #\Newline stream)
+  (print-indent indent stream)
+  (loop :for (key . val) :in (jso-alist element)
+        :for first := t :then nil
+        :unless first :do
+          (write-char #\, stream)
+          (write-char #\Newline stream)
+          (print-indent indent stream)
+        :do (print-json-element key stream (1+ indent))
+        :do (write-char #\: stream)
+            (write-char #\Space stream)
+        :do (print-json-element val stream (1+ indent)))
+  (write-char #\Newline stream)
+  (print-indent indent stream)
+  (write-char #\} stream))
+
+(defmethod print-json-element ((element list) stream &optional (indent 0))
+  (declare #.*optimize*)
+  (declare (ignorable indent))
+  (write-char #\[ stream)
+  (let ((first t))
+    (dolist (part element)
+     (if first
+         (setf first nil)
+         (progn
+           (write-char #\, stream)
+           (write-char #\Newline stream)
+           (print-indent indent stream)))
+      (print-json-element part stream (1+ indent))))
+  (print-indent (1- indent) stream)
+  (write-string "]\\n" stream))
