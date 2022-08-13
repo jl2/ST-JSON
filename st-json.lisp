@@ -587,13 +587,13 @@ Raises a json-type-error when the type is wrong."
   (declare (ignorable indent))
   (write-char #\{ stream)
   (write-char #\Newline stream)
-  (print-indent indent stream)
+  (print-indent (1+ indent) stream)
   (loop :for (key . val) :in (jso-alist element)
         :for first := t :then nil
         :unless first :do
           (write-char #\, stream)
           (write-char #\Newline stream)
-          (print-indent indent stream)
+          (print-indent (1+ indent) stream)
         :do (print-json-element key stream (1+ indent))
         :do (write-char #\: stream)
             (write-char #\Space stream)
