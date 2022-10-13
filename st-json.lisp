@@ -6,8 +6,8 @@
            #:*print-object-pretty-prints*
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
-           #:jso #:getjso #:getjso* #:mapjso
-           #:gj #:gj*
+           #:jso #:getjso #:getjso* #:getjso+ #:mapjso
+           #:jso-λ #:jso+-λ #:jso-lambda #:jso+-lambda
            #:filter-key
            #:filter-value
            #:matches
@@ -72,11 +72,6 @@ gethash."
         (setf (cdr pair) val)
         (prog1 val (push (cons key val) (jso-alist map))))))
 
-(defun gj (key)
-  (lambda (jso) (getjso key jso)))
-
-(defun gj* (key)
-  (lambda (jso) (getjso* key jso)))
 
 (defun filter-key (jso pred)
   (jso-from-alist
@@ -100,16 +95,55 @@ gethash."
 (defun jso-filter (jso-data outter inner values)
   (jso outter (remove-if-not (lambda (jso) (matches jso inner values)) (getjso outter jso-data))))
 
-(defun getjso* (keys jso)
-  (let ((last (position #\. keys :from-end t)))
+(defmacro getjso* (key jso)
+  "key is a string of the form \"key1.key2.key3\" and macroexpands into:
+    (getjso \"key3\"
+      (getjso \"key2\"
+        (getjso \"key1\" jso)))"
+  (let ((last (position #\. key :from-end t)))
     (if last
-        (let ((inner (getjso* (subseq keys 0 last) jso)))
+        `(getjso ,(subseq key (1+ last))
+                 (getjso* ,(subseq key 0 last) ,jso))
+        `(getjso ,key ,jso))))
+
+(defun getjso+ (key jso)
+  "key is a string of the form \"key1.key2. ... key99\" and returns the value:
+    (getjso \"key3\"
+      (getjso \"key2\"
+        (getjso \"key1\" jso)))
+   This is like getjso*, but as an function."
+  (let ((last (position #\. key :from-end t)))
+    (if last
+        (let ((inner (getjso* (subseq key 0 last) jso)))
           (cond ((and inner (eq 'jso (type-of inner)))
-                 (getjso (subseq keys (1+ last)) inner))
+                 (getjso (subseq key (1+ last)) inner))
                 (t
                  (values nil nil))))
-        (getjso keys jso))))
+        (getjso key jso))))
 
+(defun jso-λ (key)
+  "Shorthand for (lambda (jso) (getjso key jso)). Useful for things like:
+      (mapcar (jso-λ \"name\") list-of-json)
+      (sort list-of-json #'string< :key (jso-λ \"name\"))"
+  (lambda (jso) (getjso key jso)))
+
+(defun jso+-λ (key)
+  "Shorthand for (lambda (jso) (getjso* key jso)). Useful for things like:
+      (mapcar (jso+-λ \"person.name\") list-of-json)
+      (sort list-of-json #'string< :key (jso+-λ \"person.name\"))"
+  (lambda (jso) (getjso+ key jso)))
+
+(defun jso-lambda (key)
+  "Shorthand for (lambda (jso) (getjso key jso)). Useful for things like:
+      (mapcar (jso-λ \"name\") list-of-json)
+      (sort list-of-json #'string< :key (jso-λ \"name\"))"
+  (lambda (jso) (getjso key jso)))
+
+(defun jso+-lambda (key)
+  "Shorthand for (lambda (jso) (getjso* key jso)). Useful for things like:
+      (mapcar (jso+-λ \"person.name\") list-of-json)
+      (sort list-of-json #'string< :key (jso+-λ \"person.name\"))"
+  (lambda (jso) (getjso+ key jso)))
 
 (defun jso-keys (map)
   (loop :for (key . nil) :in (jso-alist map)
