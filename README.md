@@ -32,3 +32,9 @@ Documentation
 -------------
 
 See the webpage for [documentation](https://marijnhaverbeke.nl/st-json/).
+
+
+About the jl2-latest branch
+---------------------------
+
+This is a branch that keeps up to date with 'upstream/master', but also several utilities that I've found useful.
