@@ -20,13 +20,14 @@
            #:*decode-objects-as*
            #:*allow-comments*
            #:*script-tag-hack*
-           #:*output-literal-unicode*))
+           #:*output-literal-unicode*
+           #:with-keys))
 
 (in-package :st-json)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *optimize*
-    '(optimize (speed 0) (safety 3) (space 3) (debug 1) (compilation-speed 0))))
+    '(optimize (speed 3) (safety 1) (space 3) (debug 1) (compilation-speed 0))))
 
 ;; Boolean types. It is hard to see what is meant by NIL when encoding
 ;; a lisp value -- false or [] -- so :false and :true are used instead
@@ -51,10 +52,14 @@
   (make-jso :alist (loop :for (key val) :on fields :by #'cddr
                            :collect (cons key val))))
 
+(defparameter *print-object-pretty-prints* t
+  "Non-nil means print-object will pretty-print JSON output  When nil
+  object is written on a single line.")
+
 (defmethod print-object ((obj jso) out)
   "Pretty print JSON results to stream."
   (if *print-object-pretty-prints*
-      (print-json-element obj out)
+      (print-json-element obj out 0)
       (write-json obj out)))
 
 
@@ -419,10 +424,6 @@ Raises a json-type-error when the type is wrong."
   they can already read UTF-8, or else, they'll need to implement
   complex unicode (eg UTF-16 surrogate pairs) escape parsers.")
 
-(defparameter *print-object-pretty-prints* t
-  "Non-nil means print-object will pretty-print JSON output  When nil
-  object is written on a single line.")
-
 (defun write-json-to-string (element)
   "Write a value's JSON representation to a string."
   (with-output-to-string (out)
@@ -530,9 +531,10 @@ Raises a json-type-error when the type is wrong."
 
 
 (defgeneric print-json-element (element stream &optional indent)
+  ;; Default implementation calls write-json-element
   (:method (element stream &optional (indent 0))
-    (declare (ignore stream indent))
-    (raise 'json-write-error "Can not pretty-print object of type ~A as JSON." (type-of element)))
+    (declare (ignorable indent))
+    (write-json-element element stream))
   (:documentation "Method used for pretty printing values of a specific type.
   You can specialise this for your own types."))
 
@@ -650,4 +652,15 @@ Raises a json-type-error when the type is wrong."
            (print-indent indent stream)))
       (print-json-element part stream (1+ indent))))
   (print-indent (1- indent) stream)
-  (write-string "]\\n" stream))
+  (write-string "]" stream))
+
+(defmacro with-keys (element key-names &body body)
+  (let ((el (gensym)))
+    `(let ((,el ,element))
+       (declare (ignorable ,el))
+       (symbol-macrolet
+           ,(mapcar (lambda (kname)
+                      `(,(car kname)
+                        (getjso+ ,(cadr kname) ,el)))
+             key-names)
+         ,@body))))
