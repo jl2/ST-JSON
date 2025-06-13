@@ -235,6 +235,9 @@ gethash."
       (raise 'json-parse-error "Unused characters at end of input."))
     value))
 
+(defmethod read-json ((in pathname) &optional (junk-allowed-p t))
+  (read-json (open in) junk-allowed-p))
+
 (defmethod read-json ((in string) &optional (junk-allowed-p nil))
   (with-input-from-string (stream in)
     (read-json stream junk-allowed-p)))
