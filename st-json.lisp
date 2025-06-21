@@ -195,11 +195,19 @@ gethash."
 
 (defvar *reading-slot-name* nil)
 
+
+
 (defun is-whitespace (char)
-  (member char '(#\space #\newline #\return #\tab)))
+  "Return t if a character is a whitespace, nil otherwise."
+  (declare (type (or null character) char))
+  #+sbcl (sb-unicode:whitespace-p char)
+  #-sbcl (member char '(#\space #\newline #\return #\tab)))
 
 (defun ends-atom (char)
-  (or (is-whitespace char) (member char '(#\) #\] #\} #\, #\:))))
+  (declare #.*optimize*)
+  (declare (type character char))
+  (or (is-whitespace char)
+      (member char '(#\) #\] #\} #\, #\:))))
 
 (defun skip-cpp-comment (stream)
   (declare #.*optimize*)
