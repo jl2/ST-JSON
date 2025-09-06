@@ -127,16 +127,55 @@
   <p class="desc"><code>maphash</code> equivalent for JavaScript
   objects.</p>
 
+  <p class="def" id="collect">
+    <span>function</span> collect (function jso)
+  </p>
+
+  <p class="desc"><code>mapcar</code> equivalent for JavaScript
+    objects.  Like <code>mapjso</code>, but returns the results in a list.
+    <br/>&#8594; list
+  </p>
+
+  <p class="def" id="jso-keys">
+    <span>function</span> jso-keys (jso)
+    <br/>&#8594; list
+  </p>
+
+  <p class="desc">Returns a list containing the keys of jso.</p>
+
+  <p class="def" id="jso-values">
+    <span>method</span> jso-values (jso)
+    <br/>&#8594; list
+  </p>
+
+  <p class="desc">Returns a list containing the values of jso.</p>
+
+  <p class="def" id="jso-to-alist">
+    <span>method</span> jso-to-alist (jso)
+    <br/>&#8594; alist
+  </p>
+
+  <p class="desc">Recursively builds an alist representation of jso.</p>
+
+  <p class="def" id="jso-from-alist">
+    <span>method</span> jso-from-alist (jso)
+    <br/>&#8594; jso
+  </p>
+
+  <p class="desc">Construct a jso directly from an alist.
+    This doesn't copy the alist so it shares structure with it.</p>
+
+  
   <p class="def" id="read-json">
     <span>method</span> read-json (source &amp;optional junk-allowed-p)
     <br/>&#8594; value
   </p>
 
-  <p class="desc">Reads a JSON value from an input stream or string.
-  When <code>junk-allowed-p</code> is <code>nil</code>, an error will
-  be raised if any non-whitespace characters are found after the
-  value. This error, and any other parsing errors, will have the type
-  <code>json-parse-error</code>.</p>
+  <p class="desc">Reads a JSON value from an input stream, string,
+    or file.  When <code>junk-allowed-p</code> is <code>nil</code>, an
+    error will be raised if any non-whitespace characters are found
+    after the value. This error, and any other parsing errors, will have
+    the type <code>json-parse-error</code>.</p>
 
   <p class="def" id="read-json-as-type">
     <span>function</span> read-json-as-type (source type)
@@ -173,6 +212,13 @@
   <p class="desc">Generic function used to serialise values as JSON.
   You can specialise it for your own types, if needed.</p>
 
+  <p class="def" id="print-json-element">
+    <span>method</span> print-json-element (element stream)
+  </p>
+
+  <p class="desc">Generic function used to pretty print values as JSON.
+  You can specialise it for your own types, if needed.</p>
+
   <p class="def" id="script-tag-hack">
     <span>variable</span> *script-tag-hack*
   </p>
@@ -183,11 +229,21 @@
   any slash following a '<code>&lt;</code>' character. Default value
   is <code>nil</code>.</p>
 
-  <p class="def" id="script-tag-hack">
+  <p class="def" id="allow-comments">
     <span>variable</span> *allow-comments*
   </p>
 
   <p class="desc">Bind this to <code>t</code> to ignore C++ style
-  end of line comments. Default value is <code>nil</code>.</p>
+    end of line comments. Default value is <code>nil</code>.</p>
+
+  <p class="def" id="print-object-style">
+    <span>variable</span> *print-object-style*
+  </p>
+
+  <p class="desc">Bind this to <code>:pretty</code> to make <code>print-object</code>
+    pretty print <code>jso</code>.   <code>:one-line</code> to print as JSON on a single
+    line, or any other value to print using the default structure display.
+    Default is <code>:one-line</code>.</p>
+
 </body>
 </html>
