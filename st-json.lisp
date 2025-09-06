@@ -5,6 +5,7 @@
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
+           #:collect
            #:jso-keys #:jso-values
            #:jso-from-alist
            #:jso-to-alist
@@ -57,32 +58,48 @@ gethash."
     (if pair
         (setf (cdr pair) val)
         (prog1 val (push (cons key val) (jso-alist map))))))
+
 (defun mapjso (func map)
   "Iterate over the key/value pairs in a JS object."
   (loop :for (key . val) :in (jso-alist map)
-        :collecting (funcall func key val)))
+        :do (funcall func key val)))
+
+(defun collect (func map)
+  "Like mapjso, but returning the results.
+   Returns a list with the results of calling func on each key/value pair in a JS object."
+  (loop :for (key . val) :in (jso-alist map)
+        :do (collect func key val)))
 
 (defmacro getjso* (keys jso)
+  "Takes a key of the form \"a.b.c\", generates a series of getjso calls that
+   descend into the object and returns 'c'."
   (let ((last (position #\. keys :from-end t)))
     (if last
         `(getjso ,(subseq keys (1+ last))
                  (getjso* ,(subseq keys 0 last) ,jso))
         `(getjso ,keys ,jso))))
 
-(defun jso-keys (map)
-  (loop :for (key . val) :in (jso-alist map)
-     :collecting key))
+(defun jso-keys (obj)
+  "Returns a list of all keys in obj"
+  (loop :for (key . nil) :in (jso-alist obj)
+        :collecting key))
 
 (defun jso-values (map)
-  (loop :for (key . val) :in (jso-alist map)
+  "Returns a list of all values in obj"
+  (loop :for (nil . val) :in (jso-alist obj)
         :collecting val))
 
 (defun jso-from-alist (vals)
+  "Construct a jso directly with an existing alist"
   (make-jso :alist vals))
 
 (defun jso-to-alist (jso-val)
+  "Recursively build an alist from jso-val"
   (typecase jso-val
-    (jso (mapjso (lambda (key val) (cons key (jso-to-alist val))) jso-val))
+    (jso (collect (lambda (key val)
+                    (cons key
+                          (jso-to-alist val)))
+           jso-val))
     (t jso-val)))
 
 ;; Reader
