@@ -480,7 +480,7 @@ Raises a json-type-error when the type is wrong."
 
 (declaim (inline print-indent))
 (defun print-indent (indentation stream)
-    (write-string (make-string (* (max 0 indentation) *indent-size*) :initial-element #\Space) stream))
+    (write-string (make-string (* (max 0 indentation) *pretty-print-indent-size*) :initial-element #\Space) stream))
 
 (defmethod print-json-element ((element symbol) stream &optional (indent 0))
   (declare #.*optimize*)
@@ -495,7 +495,7 @@ Raises a json-type-error when the type is wrong."
 (defmethod print-json-element ((element string) stream &optional (indent 0))
   (declare #.*optimize* (stream stream))
   (declare (ignorable indent))
-  (write-json-element string stream))
+  (write-json-element element stream))
 
 #+nil
 (let ((st-json:*script-tag-hack* t))
