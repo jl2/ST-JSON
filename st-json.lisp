@@ -5,6 +5,8 @@
            #:as-json-bool #:from-json-bool
            #:json-bool #:json-null
            #:jso #:getjso #:getjso* #:mapjso
+           #:jso-keys #:jso-values
+           #:jso-from-alist
            #:json-error #:json-type-error #:json-parse-error
            #:json-eof-error
            #:*decode-objects-as*
@@ -63,6 +65,17 @@ gethash."
         `(getjso ,(subseq keys (1+ last))
                  (getjso* ,(subseq keys 0 last) ,jso))
         `(getjso ,keys ,jso))))
+
+(defun jso-keys (map)
+  (loop :for (key . val) :in (jso-alist map)
+     :collecting key))
+
+(defun jso-values (map)
+  (loop :for (key . val) :in (jso-alist map)
+        :collecting val))
+
+(defun jso-from-alist (vals)
+  (make-jso :alist vals))
 
 ;; Reader
 
