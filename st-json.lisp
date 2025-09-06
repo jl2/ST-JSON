@@ -14,6 +14,7 @@
            #:*decode-objects-as*
            #:print-json-element
            #:*print-object-style*
+           #:*pretty-print-indent-size*
            #:*allow-comments*
            #:*script-tag-hack*
            #:*output-literal-unicode*))
@@ -474,7 +475,8 @@ Raises a json-type-error when the type is wrong."
   (:documentation "Method used for pretty printing values of a specific type.
   You can specialise this for your own types."))
 
-(defparameter *indent-size* 4)
+(defparameter *pretty-print-indent-size* 4
+  "The number of spaces to use when indenting pretty printed JSON.")
 
 (declaim (inline print-indent))
 (defun print-indent (indentation stream)
