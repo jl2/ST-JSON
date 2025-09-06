@@ -132,7 +132,11 @@ gethash."
 (defgeneric read-json (in &optional junk-allowed-p)
   (:documentation "Read a JSON-encoded value from a stream or a string."))
 
-(defmethod read-json ((in stream) &optional (junk-allowed-p t))
+(defmethod read-json ((in pathname) &optional (junk-allowed-p nil))
+  (with-open-file (stream in :direction :input)
+    (read-json stream junk-allowed-p)))
+
+(defmethod read-json ((in stream) &optional (junk-allowed-p nil))
   (let ((value (read-json-element in)))
     (skip-whitespace in)
     (unless (or junk-allowed-p (at-eof in))
