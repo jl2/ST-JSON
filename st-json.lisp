@@ -495,41 +495,7 @@ Raises a json-type-error when the type is wrong."
 (defmethod print-json-element ((element string) stream &optional (indent 0))
   (declare #.*optimize* (stream stream))
   (declare (ignorable indent))
-  (let ((element (coerce element 'simple-string)))
-    (write-char #\" stream)
-    (loop :for prev := nil :then ch
-       :for ch :of-type character :across element :do
-       (let ((code (char-code ch)))
-         (declare (fixnum code))
-         (if (or (<= 0 code #x1f)
-                 (<= #x7f code #x9f))
-             (case code
-               (#.(char-code #\backspace) (write-string "\\b" stream))
-               (#.(char-code #\newline)   (write-string "\\n" stream))
-               (#.(char-code #\return)    (write-string "\\r" stream))
-               (#.(char-code #\page)      (write-string "\\f" stream))
-               (#.(char-code #\tab)       (write-string "\\t" stream))
-               (t                         (format stream "\\u~4,'0x" code)))
-             (case code
-               (#.(char-code #\/)  (when (and (eql prev #\<) *script-tag-hack*)
-                                     (write-char #\\ stream))
-                                   (write-char ch stream))
-               (#.(char-code #\\)  (write-string "\\\\" stream))
-               (#.(char-code #\")  (write-string "\\\"" stream))
-               (t                  (cond ((< #x1F code #x7F)
-                                          (write-char ch stream))
-                                         ((and (< #x9F code #x10000)
-                                               (not *output-literal-unicode*))
-                                          (format stream "\\u~4,'0x" code))
-                                         ((and (< #x10000 code #x1FFFF)
-                                               (not *output-literal-unicode*))
-                                          (let ((c (- code #x10000)))
-                                            (format stream "\\u~4,'0x\\u~4,'0x"
-                                                    (logior #xD800 (ash c -10))
-                                                    (logior #xDC00 (logand c #x3FF)))))
-                                         (t
-                                          (write-char ch stream))))))))
-    (write-char #\" stream)))
+  (write-json-element string stream))
 
 #+nil
 (let ((st-json:*script-tag-hack* t))
