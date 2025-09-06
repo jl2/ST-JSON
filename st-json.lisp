@@ -7,6 +7,7 @@
            #:jso #:getjso #:getjso* #:mapjso
            #:jso-keys #:jso-values
            #:jso-from-alist
+           #:jso-to-alist
            #:json-error #:json-type-error #:json-parse-error
            #:json-eof-error
            #:*decode-objects-as*
@@ -78,6 +79,11 @@ gethash."
 
 (defun jso-from-alist (vals)
   (make-jso :alist vals))
+
+(defun jso-to-alist (jso-val)
+  (typecase jso-val
+    (jso (mapjso (lambda (key val) (cons key (jso-to-alist val))) jso-val))
+    (t jso-val)))
 
 ;; Reader
 
