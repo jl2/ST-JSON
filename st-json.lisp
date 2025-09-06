@@ -57,7 +57,7 @@ gethash."
 (defun mapjso (func map)
   "Iterate over the key/value pairs in a JS object."
   (loop :for (key . val) :in (jso-alist map)
-        :do (funcall func key val)))
+        :collecting (funcall func key val)))
 
 (defmacro getjso* (keys jso)
   (let ((last (position #\. keys :from-end t)))
