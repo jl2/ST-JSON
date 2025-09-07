@@ -69,7 +69,7 @@ gethash."
   "Like mapjso, but returning the results.
    Returns a list with the results of calling func on each key/value pair in a JS object."
   (loop :for (key . val) :in (jso-alist map)
-        :do (collect func key val)))
+        :collect (funcall func key val)))
 
 (defmacro getjso* (keys jso)
   "Takes a key of the form \"a.b.c\", generates a series of getjso calls that
